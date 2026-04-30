@@ -1,0 +1,376 @@
+{% extends 'banking_app/base.html' %}
+{% load tz %}
+{% block title %}Dashboard — HDF{% endblock %}
+{% block body_class %}app-page{% endblock %}
+
+{% block body %}
+{% include 'banking_app/_sidebar.html' %}
+
+<main class="app-main">
+  <header class="app-header">
+    <div class="app-header__left">
+      <h1 class="app-header__title">Dashboard</h1>
+      <p class="app-header__sub">{{ user.name }}'s overview</p>
+    </div>
+    <div class="app-header__right">
+      <div class="header-time" id="liveClock"></div>
+    </div>
+  </header>
+
+  <!-- Hero Balance Card -->
+  <section class="balance-hero">
+    <div class="balance-hero__card">
+      <div class="balance-hero__label">Account Balance</div>
+      <div class="balance-hero__amount" id="heroBalance">₹ ——</div>
+      <button class="btn btn--ghost btn--sm balance-hero__reveal" id="revealBtn">
+        🔒 Reveal Balance
+      </button>
+      <div class="balance-hero__info">
+        <div class="info-chip">
+          <span class="info-chip__label">Account No.</span>
+          <span class="info-chip__val mono">{{ user.account_number }}</span>
+        </div>
+        <div class="info-chip">
+          <span class="info-chip__label">Holder</span>
+          <span class="info-chip__val">{{ user.name }}</span>
+        </div>
+        <div class="info-chip">
+          <span class="info-chip__label">Email</span>
+          <span class="info-chip__val">{{ user.email }}</span>
+        </div>
+        <div class="info-chip">
+          <span class="info-chip__label">Phone</span>
+          <span class="info-chip__val">{{ user.phone }}</span>
+        </div>
+      </div>
+    </div>
+    <div class="balance-hero__bg"></div>
+  </section>
+
+  <!-- Quick Actions -->
+  <section class="quick-actions">
+    <h2 class="section-title">Quick Actions</h2>
+    <div class="action-grid">
+      <a href="{% url 'deposit' %}" class="action-card action-card--deposit">
+        <div class="action-card__icon">↑</div>
+        <div class="action-card__label">Deposit</div>
+        <div class="action-card__desc">Add funds to your account</div>
+      </a>
+      <a href="{% url 'withdraw' %}" class="action-card action-card--withdraw">
+        <div class="action-card__icon">↓</div>
+        <div class="action-card__label">Withdraw</div>
+        <div class="action-card__desc">Access your funds</div>
+      </a>
+      <a href="{% url 'balance' %}" class="action-card action-card--balance">
+        <div class="action-card__icon">◎</div>
+        <div class="action-card__label">Balance</div>
+        <div class="action-card__desc">Check current balance</div>
+      </a>
+      <a href="{% url 'transactions' %}" class="action-card action-card--history">
+        <div class="action-card__icon">≡</div>
+        <div class="action-card__label">History</div>
+        <div class="action-card__desc">View all transactions</div>
+      </a>
+    </div>
+  </section>
+
+  <!-- Recent Transactions -->
+  <section class="recent-txns">
+    <div class="section-header">
+      <h2 class="section-title">Recent Transactions</h2>
+      <a href="{% url 'transactions' %}" class="link-more">View all →</a>
+    </div>
+    {% if recent_transactions %}
+      <div class="txn-list">
+        {% for txn in recent_transactions %}
+          <div class="txn-row txn-row--{{ txn.type }}">
+            <div class="txn-row__icon">
+              {% if txn.type == 'deposit' %}↑{% else %}↓{% endif %}
+            </div>
+            <div class="txn-row__info">
+              <span class="txn-row__type">{{ txn.type|title }}</span>
+              <span class="txn-row__date">{{ txn.date_time|localtime|date:"d M Y, H:i" }}</span>
+            </div>
+            <div class="txn-row__amount txn-row__amount--{{ txn.type }}">
+              {% if txn.type == 'deposit' %}+{% else %}−{% endif %}₹{{ txn.amount|floatformat:2 }}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <div class="empty-state__icon">◌</div>
+        <p>No transactions yet. Make your first deposit!</p>
+      </div>
+    {% endif %}
+  </section>
+</main>
+
+<!-- ══════════════════════════════════════
+     PIN MODAL
+     ══════════════════════════════════════ -->
+<div id="pinModal" style="
+     display:none;
+     position:fixed;
+     inset:0;
+     background:rgba(0,0,0,0.8);
+     z-index:9999;
+     align-items:center;
+     justify-content:center;">
+
+  <!-- Modal box -->
+  <div style="
+       background:#181c24;
+       border:1px solid #2d3344;
+       border-radius:16px;
+       padding:2.5rem 2rem;
+       width:90%;
+       max-width:360px;
+       text-align:center;
+       box-shadow:0 24px 64px rgba(0,0,0,0.7);">
+
+    <div style="font-size:2.25rem;margin-bottom:0.75rem;">🔐</div>
+
+    <h3 style="
+        font-family:'Syne',sans-serif;
+        font-size:1.25rem;
+        font-weight:700;
+        color:#e8eaf0;
+        margin-bottom:0.375rem;">
+      Enter your PIN
+    </h3>
+
+    <p style="font-size:0.82rem;color:#8b91a7;margin-bottom:1.5rem;">
+      Type your 4-digit transaction PIN
+    </p>
+
+    <!-- 4 PIN input boxes -->
+    <div style="display:flex;gap:12px;justify-content:center;margin-bottom:0.75rem;">
+      <input id="p1" type="password" maxlength="1" inputmode="numeric"
+             style="width:58px;height:62px;text-align:center;font-size:1.6rem;
+                    background:#0a0b0e;border:2px solid #2d3344;border-radius:10px;
+                    color:#e8eaf0;outline:none;font-family:'DM Mono',monospace;
+                    transition:border-color 0.15s,box-shadow 0.15s;" />
+      <input id="p2" type="password" maxlength="1" inputmode="numeric"
+             style="width:58px;height:62px;text-align:center;font-size:1.6rem;
+                    background:#0a0b0e;border:2px solid #2d3344;border-radius:10px;
+                    color:#e8eaf0;outline:none;font-family:'DM Mono',monospace;
+                    transition:border-color 0.15s,box-shadow 0.15s;" />
+      <input id="p3" type="password" maxlength="1" inputmode="numeric"
+             style="width:58px;height:62px;text-align:center;font-size:1.6rem;
+                    background:#0a0b0e;border:2px solid #2d3344;border-radius:10px;
+                    color:#e8eaf0;outline:none;font-family:'DM Mono',monospace;
+                    transition:border-color 0.15s,box-shadow 0.15s;" />
+      <input id="p4" type="password" maxlength="1" inputmode="numeric"
+             style="width:58px;height:62px;text-align:center;font-size:1.6rem;
+                    background:#0a0b0e;border:2px solid #2d3344;border-radius:10px;
+                    color:#e8eaf0;outline:none;font-family:'DM Mono',monospace;
+                    transition:border-color 0.15s,box-shadow 0.15s;" />
+    </div>
+
+    <p id="pinModalErr" style="
+       color:#ef4444;
+       font-size:0.82rem;
+       min-height:1.4em;
+       margin-bottom:1rem;">
+    </p>
+
+    <div style="display:flex;gap:10px;justify-content:center;">
+      <button onclick="closePinModal()" style="
+              padding:0.65rem 1.5rem;
+              border-radius:8px;
+              border:1px solid #2d3344;
+              background:transparent;
+              color:#8b91a7;
+              cursor:pointer;
+              font-size:0.9rem;
+              font-family:'Syne',sans-serif;
+              transition:border-color 0.15s;">
+        Cancel
+      </button>
+      <button onclick="checkPin()" id="pinSubmitBtn" style="
+              padding:0.65rem 1.5rem;
+              border-radius:8px;
+              border:none;
+              background:#f5a623;
+              color:#000;
+              cursor:pointer;
+              font-size:0.9rem;
+              font-weight:700;
+              font-family:'Syne',sans-serif;">
+        Verify PIN
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<input type="hidden" id="hiddenBalance" value="{{ user.balance }}" />
+{% endblock %}
+
+
+{% block extra_js %}
+<script>
+(function () {
+
+  /* ── Live clock ── */
+  function updateClock() {
+    var el = document.getElementById('liveClock');
+    if (el) el.textContent = new Date().toLocaleTimeString('en-IN', {
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
+    });
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  /* ── PIN boxes ── */
+  var pinInputs = [
+    document.getElementById('p1'),
+    document.getElementById('p2'),
+    document.getElementById('p3'),
+    document.getElementById('p4')
+  ];
+
+  var revealed = false;
+
+  /* ── Open / Close modal ── */
+  function openPinModal() {
+    document.getElementById('pinModal').style.display = 'flex';
+    pinInputs.forEach(function (p) {
+      p.value = '';
+      p.style.borderColor = '#2d3344';
+      p.style.boxShadow   = 'none';
+    });
+    document.getElementById('pinModalErr').textContent = '';
+    pinInputs[0].focus();
+  }
+
+  function closePinModal() {
+    document.getElementById('pinModal').style.display = 'none';
+    pinInputs.forEach(function (p) { p.value = ''; });
+  }
+
+  /* expose for onclick attributes */
+  window.openPinModal  = openPinModal;
+  window.closePinModal = closePinModal;
+
+  /* ── Reveal button ── */
+  document.getElementById('revealBtn').addEventListener('click', function () {
+    if (revealed) {
+      document.getElementById('heroBalance').textContent = '₹ ——';
+      this.textContent = '🔒 Reveal Balance';
+      revealed = false;
+    } else {
+      openPinModal();
+    }
+  });
+
+  /* ── Close modal on backdrop click ── */
+  document.getElementById('pinModal').addEventListener('click', function (e) {
+    if (e.target === this) closePinModal();
+  });
+
+  /* ── Wire PIN boxes ── */
+  pinInputs.forEach(function (box, i) {
+
+    box.addEventListener('focus', function () {
+      this.style.borderColor = '#f5a623';
+      this.style.boxShadow   = '0 0 0 3px #f5a62320';
+    });
+    box.addEventListener('blur', function () {
+      this.style.borderColor = this.value ? '#f5a623' : '#2d3344';
+      this.style.boxShadow   = 'none';
+    });
+
+    box.addEventListener('keydown', function (e) {
+      if (e.key === 'Backspace') {
+        this.value = '';
+        if (i > 0) pinInputs[i - 1].focus();
+        return;
+      }
+      if (e.key === 'Enter')  { checkPin();       return; }
+      if (e.key === 'Escape') { closePinModal();  return; }
+      if (e.key === 'Tab' || e.key.startsWith('Arrow')) return;
+      if (!/^\d$/.test(e.key)) e.preventDefault();
+    });
+
+    box.addEventListener('input', function () {
+      this.value = this.value.replace(/\D/g, '').slice(-1);
+      if (this.value && i < pinInputs.length - 1) pinInputs[i + 1].focus();
+      /* auto-submit when all 4 filled */
+      if (pinInputs.every(function (p) { return p.value !== ''; })) {
+        setTimeout(checkPin, 150);
+      }
+    });
+
+    /* paste support */
+    box.addEventListener('paste', function (e) {
+      e.preventDefault();
+      var digits = (e.clipboardData.getData('text') || '').replace(/\D/g, '').slice(0, 4);
+      digits.split('').forEach(function (d, j) {
+        if (pinInputs[j]) {
+          pinInputs[j].value = d;
+          pinInputs[j].style.borderColor = '#f5a623';
+        }
+      });
+      if (digits.length === 4) setTimeout(checkPin, 150);
+      else if (pinInputs[digits.length]) pinInputs[digits.length].focus();
+    });
+  });
+
+  /* ── Verify PIN via AJAX ── */
+  window.checkPin = function () {
+    var pin = pinInputs.map(function (p) { return p.value; }).join('');
+    if (pin.length < 4) {
+      document.getElementById('pinModalErr').textContent = 'Please enter all 4 digits.';
+      return;
+    }
+
+    var btn = document.getElementById('pinSubmitBtn');
+    btn.textContent = '...';
+    btn.disabled = true;
+
+    fetch('/api/verify-pin/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken')
+      },
+      body: JSON.stringify({ pin: pin })
+    })
+    .then(function (res) { return res.json(); })
+    .then(function (data) {
+      if (data.valid) {
+        closePinModal();
+        var raw = parseFloat(document.getElementById('hiddenBalance').value) || 0;
+        document.getElementById('heroBalance').textContent =
+          '₹ ' + raw.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        document.getElementById('revealBtn').textContent = '🔓 Hide Balance';
+        revealed = true;
+      } else {
+        document.getElementById('pinModalErr').textContent = '❌ Incorrect PIN. Try again.';
+        pinInputs.forEach(function (p) {
+          p.value = '';
+          p.style.borderColor = '#ef4444';
+        });
+        pinInputs[0].focus();
+      }
+    })
+    .catch(function () {
+      document.getElementById('pinModalErr').textContent = 'Connection error. Retry.';
+    })
+    .finally(function () {
+      btn.textContent = 'Verify PIN';
+      btn.disabled = false;
+    });
+  };
+
+  /* ── CSRF helper ── */
+  function getCookie(name) {
+    var m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return m ? m.pop() : '';
+  }
+
+})();
+</script>
+{% endblock %}

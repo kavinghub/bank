@@ -1,0 +1,178 @@
+{% extends 'banking_app/base.html' %}
+{% block title %}Withdraw — HDF{% endblock %}
+{% block body_class %}app-page{% endblock %}
+
+{% block body %}
+{% include 'banking_app/_sidebar.html' %}
+
+<main class="app-main">
+  <header class="app-header">
+    <div class="app-header__left">
+      <h1 class="app-header__title">Withdraw Funds</h1>
+      <p class="app-header__sub">Access your money securely</p>
+    </div>
+  </header>
+
+  <div class="form-page">
+    <div class="form-card">
+      <div class="form-card__icon form-card__icon--withdraw">↓</div>
+      <h2 class="form-card__title">Make a Withdrawal</h2>
+
+      {% if success %}<div class="alert alert--success">{{ success }}</div>{% endif %}
+      {% if error %}<div class="alert alert--error">{{ error }}</div>{% endif %}
+
+      <form method="POST" action="{% url 'withdraw' %}" id="withdrawForm">
+        {% csrf_token %}
+
+        <!-- Amount -->
+        <div class="field">
+          <label class="field__label">Amount (₹)</label>
+          <div class="amount-input-wrap">
+            <span class="amount-input-wrap__currency">₹</span>
+            <input class="field__input field__input--amount"
+                   type="number" name="amount" id="wAmount"
+                   min="1" step="0.01" placeholder="0.00" required />
+          </div>
+          <span class="field__error" id="wAmtErr"></span>
+        </div>
+
+        <!-- Quick amounts -->
+        <div class="quick-amounts">
+          <span class="quick-amounts__label">Quick select:</span>
+          <button type="button" class="chip" onclick="document.getElementById('wAmount').value=500">₹500</button>
+          <button type="button" class="chip" onclick="document.getElementById('wAmount').value=1000">₹1,000</button>
+          <button type="button" class="chip" onclick="document.getElementById('wAmount').value=5000">₹5,000</button>
+          <button type="button" class="chip" onclick="document.getElementById('wAmount').value=10000">₹10,000</button>
+        </div>
+
+        <!-- PIN -->
+        <div class="field" style="margin-top:1.25rem;">
+          <label class="field__label">Transaction PIN
+            <span class="field__hint">4 digits required</span>
+          </label>
+          <div style="display:flex; gap:10px; margin-top:4px;">
+            <input id="w1" type="password" maxlength="1" inputmode="numeric"
+                   style="width:56px;height:60px;text-align:center;font-size:1.5rem;
+                          background:var(--bg-3);border:2px solid var(--border-2);
+                          border-radius:8px;color:var(--text);outline:none;
+                          font-family:var(--font-mono);transition:border-color 0.15s;" />
+            <input id="w2" type="password" maxlength="1" inputmode="numeric"
+                   style="width:56px;height:60px;text-align:center;font-size:1.5rem;
+                          background:var(--bg-3);border:2px solid var(--border-2);
+                          border-radius:8px;color:var(--text);outline:none;
+                          font-family:var(--font-mono);transition:border-color 0.15s;" />
+            <input id="w3" type="password" maxlength="1" inputmode="numeric"
+                   style="width:56px;height:60px;text-align:center;font-size:1.5rem;
+                          background:var(--bg-3);border:2px solid var(--border-2);
+                          border-radius:8px;color:var(--text);outline:none;
+                          font-family:var(--font-mono);transition:border-color 0.15s;" />
+            <input id="w4" type="password" maxlength="1" inputmode="numeric"
+                   style="width:56px;height:60px;text-align:center;font-size:1.5rem;
+                          background:var(--bg-3);border:2px solid var(--border-2);
+                          border-radius:8px;color:var(--text);outline:none;
+                          font-family:var(--font-mono);transition:border-color 0.15s;" />
+          </div>
+          <input type="hidden" name="pin" id="wPin" />
+          <span class="field__error" id="wPinErr"></span>
+        </div>
+
+        <button type="submit" class="btn btn--withdraw btn--full"
+                style="margin-top:1.5rem;" id="wBtn">
+          <span id="wBtnText">↓ Confirm Withdrawal</span>
+          <span id="wBtnLoad" style="display:none;">Processing...</span>
+        </button>
+      </form>
+    </div>
+
+    <div class="form-info-card form-info-card--warn">
+      <h3>Withdraw Guidelines</h3>
+      <ul>
+        <li>Ensure you have sufficient balance</li>
+        <li>PIN is mandatory for all withdrawals</li>
+        <li>Transactions cannot be reversed</li>
+        <li>Maximum per transaction: ₹10,00,000</li>
+      </ul>
+    </div>
+  </div>
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  /* ── PIN boxes ── */
+  var boxes = [
+    document.getElementById('w1'),
+    document.getElementById('w2'),
+    document.getElementById('w3'),
+    document.getElementById('w4')
+  ];
+  var pinHidden = document.getElementById('wPin');
+
+  function syncPin() {
+    pinHidden.value = boxes.map(function(b){ return b.value; }).join('');
+  }
+
+  function focusStyle(box, active) {
+    box.style.borderColor = active ? '#f5a623' : (box.value ? '#f5a623' : '#2d3344');
+    if (active) box.style.boxShadow = '0 0 0 3px #f5a62320';
+    else box.style.boxShadow = 'none';
+  }
+
+  boxes.forEach(function(box, i) {
+    box.addEventListener('focus', function(){ focusStyle(this, true); });
+    box.addEventListener('blur',  function(){ focusStyle(this, false); });
+
+    box.addEventListener('keydown', function(e) {
+      if (e.key === 'Backspace') {
+        this.value = '';
+        syncPin();
+        if (i > 0) boxes[i-1].focus();
+        return;
+      }
+      if (!/^\d$/.test(e.key) && !['Tab','ArrowLeft','ArrowRight'].includes(e.key)) {
+        e.preventDefault();
+      }
+    });
+
+    box.addEventListener('input', function() {
+      this.value = this.value.replace(/\D/g, '').slice(-1);
+      syncPin();
+      if (this.value && i < boxes.length - 1) boxes[i+1].focus();
+    });
+  });
+
+  /* Focus first box */
+  boxes[0].focus();
+
+  /* ── Form submit validation ── */
+  document.getElementById('withdrawForm').addEventListener('submit', function(e) {
+    var ok = true;
+
+    var amt = parseFloat(document.getElementById('wAmount').value);
+    if (!amt || amt <= 0) {
+      document.getElementById('wAmtErr').textContent = 'Please enter a valid amount.';
+      ok = false;
+    } else {
+      document.getElementById('wAmtErr').textContent = '';
+    }
+
+    syncPin();
+    var pin = pinHidden.value;
+    if (pin.length < 4) {
+      document.getElementById('wPinErr').textContent = 'Please enter all 4 PIN digits.';
+      ok = false;
+    } else {
+      document.getElementById('wPinErr').textContent = '';
+    }
+
+    if (!ok) { e.preventDefault(); return; }
+
+    document.getElementById('wBtnText').style.display = 'none';
+    document.getElementById('wBtnLoad').style.display = 'inline';
+    document.getElementById('wBtn').disabled = true;
+  });
+
+})();
+</script>
+{% endblock %}

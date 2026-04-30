@@ -1,0 +1,139 @@
+{% extends 'banking_app/base.html' %}
+{% block title %}Check Balance — HDF{% endblock %}
+{% block body_class %}app-page{% endblock %}
+
+{% block body %}
+{% include 'banking_app/_sidebar.html' %}
+
+<main class="app-main">
+  <header class="app-header">
+    <div class="app-header__left">
+      <h1 class="app-header__title">Check Balance</h1>
+      <p class="app-header__sub">PIN verification required</p>
+    </div>
+  </header>
+
+  <div class="form-page form-page--center">
+    <div class="form-card form-card--balance">
+      <div class="form-card__icon form-card__icon--balance">◎</div>
+      <h2 class="form-card__title">Account Balance</h2>
+
+      {% if balance_revealed %}
+        <div class="balance-display">
+          <div class="balance-display__label">Current Balance</div>
+          <div class="balance-display__amount">₹{{ balance|floatformat:2 }}</div>
+          <div class="balance-display__account mono">{{ user.account_number }}</div>
+        </div>
+        <a href="{% url 'dashboard' %}" class="btn btn--ghost btn--full"
+           style="margin-top:1.5rem;">← Back to Dashboard</a>
+
+      {% else %}
+        {% if error %}<div class="alert alert--error">{{ error }}</div>{% endif %}
+
+        <p class="form-card__desc">Enter your 4-digit PIN to view your current balance.</p>
+
+        <form method="POST" action="{% url 'balance' %}" id="balanceForm">
+          {% csrf_token %}
+
+          <div class="field">
+            <label class="field__label">Transaction PIN</label>
+            <div style="display:flex;gap:10px;justify-content:center;margin-top:4px;">
+              <input id="b1" type="password" maxlength="1" inputmode="numeric"
+                     style="width:56px;height:60px;text-align:center;font-size:1.5rem;
+                            background:var(--bg-3);border:2px solid var(--border-2);
+                            border-radius:8px;color:var(--text);outline:none;
+                            font-family:var(--font-mono);transition:border-color 0.15s;" />
+              <input id="b2" type="password" maxlength="1" inputmode="numeric"
+                     style="width:56px;height:60px;text-align:center;font-size:1.5rem;
+                            background:var(--bg-3);border:2px solid var(--border-2);
+                            border-radius:8px;color:var(--text);outline:none;
+                            font-family:var(--font-mono);transition:border-color 0.15s;" />
+              <input id="b3" type="password" maxlength="1" inputmode="numeric"
+                     style="width:56px;height:60px;text-align:center;font-size:1.5rem;
+                            background:var(--bg-3);border:2px solid var(--border-2);
+                            border-radius:8px;color:var(--text);outline:none;
+                            font-family:var(--font-mono);transition:border-color 0.15s;" />
+              <input id="b4" type="password" maxlength="1" inputmode="numeric"
+                     style="width:56px;height:60px;text-align:center;font-size:1.5rem;
+                            background:var(--bg-3);border:2px solid var(--border-2);
+                            border-radius:8px;color:var(--text);outline:none;
+                            font-family:var(--font-mono);transition:border-color 0.15s;" />
+            </div>
+            <input type="hidden" name="pin" id="bPin" />
+            <span class="field__error" id="bPinErr"></span>
+          </div>
+
+          <button type="submit" class="btn btn--primary btn--full"
+                  style="margin-top:1.5rem;" id="bBtn">
+            <span id="bBtnText">View Balance</span>
+            <span id="bBtnLoad" style="display:none;">Checking...</span>
+          </button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  var boxes = [
+    document.getElementById('b1'),
+    document.getElementById('b2'),
+    document.getElementById('b3'),
+    document.getElementById('b4')
+  ];
+  if (!boxes[0]) return; /* balance already revealed, no form on page */
+
+  var pinHidden = document.getElementById('bPin');
+
+  function syncPin() {
+    pinHidden.value = boxes.map(function(b){ return b.value; }).join('');
+  }
+
+  function focusStyle(box, active) {
+    box.style.borderColor = active ? '#f5a623' : (box.value ? '#f5a623' : '#2d3344');
+    box.style.boxShadow   = active ? '0 0 0 3px #f5a62320' : 'none';
+  }
+
+  boxes.forEach(function(box, i) {
+    box.addEventListener('focus', function(){ focusStyle(this, true); });
+    box.addEventListener('blur',  function(){ focusStyle(this, false); });
+
+    box.addEventListener('keydown', function(e) {
+      if (e.key === 'Backspace') {
+        this.value = '';
+        syncPin();
+        if (i > 0) boxes[i-1].focus();
+        return;
+      }
+      if (!/^\d$/.test(e.key) && !['Tab','ArrowLeft','ArrowRight'].includes(e.key)) {
+        e.preventDefault();
+      }
+    });
+
+    box.addEventListener('input', function() {
+      this.value = this.value.replace(/\D/g, '').slice(-1);
+      syncPin();
+      if (this.value && i < boxes.length - 1) boxes[i+1].focus();
+    });
+  });
+
+  boxes[0].focus();
+
+  document.getElementById('balanceForm').addEventListener('submit', function(e) {
+    syncPin();
+    if (pinHidden.value.length < 4) {
+      document.getElementById('bPinErr').textContent = 'Please enter all 4 PIN digits.';
+      e.preventDefault();
+      return;
+    }
+    document.getElementById('bPinErr').textContent = '';
+    document.getElementById('bBtnText').style.display = 'none';
+    document.getElementById('bBtnLoad').style.display = 'inline';
+    document.getElementById('bBtn').disabled = true;
+  });
+})();
+</script>
+{% endblock %}

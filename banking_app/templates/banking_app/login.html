@@ -1,0 +1,112 @@
+{% extends 'banking_app/base.html' %}
+{% block title %}Login — HDF{% endblock %}
+{% block body_class %}auth-page{% endblock %}
+
+{% block body %}
+<div class="auth-split">
+  <!-- Left decorative panel -->
+  <div class="auth-panel">
+    <div class="auth-panel__inner">
+      <div class="brand">
+        <div class="brand__icon">₹</div>
+        <span class="brand__name">HDF</span>
+      </div>
+      <div class="auth-panel__tagline">
+        <h1>Your money,<br /><em>secured.</em></h1>
+        <p>Enterprise-grade security for everyday banking.</p>
+      </div>
+      <div class="auth-panel__stats">
+        <div class="stat"><span class="stat__num">256</span><span class="stat__label">Bit Encryption</span></div>
+        <div class="stat"><span class="stat__num">99.9%</span><span class="stat__label">Uptime SLA</span></div>
+        <div class="stat"><span class="stat__num">0</span><span class="stat__label">Breaches</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right form panel -->
+  <div class="auth-form-wrap">
+    <div class="auth-card">
+      <h2 class="auth-card__title">Welcome back</h2>
+      <p class="auth-card__sub">Sign in with your email or account number</p>
+
+      {% if error %}
+        <div class="alert alert--error">{{ error }}</div>
+      {% endif %}
+
+      {% for msg in messages %}
+        <div class="alert alert--{{ msg.tags }}">{{ msg }}</div>
+      {% endfor %}
+
+      <form method="POST" action="{% url 'login' %}" class="auth-form" id="loginForm" novalidate>
+        {% csrf_token %}
+
+        <div class="field">
+          <label class="field__label" for="identifier">Email or Account Number</label>
+          <input
+            class="field__input"
+            type="text"
+            id="identifier"
+            name="identifier"
+            value="{{ identifier|default:'' }}"
+            autocomplete="username"
+            placeholder="you@example.com or 123456789012"
+            required
+          />
+          <span class="field__error" id="idErr"></span>
+        </div>
+
+        <div class="field">
+          <label class="field__label" for="password">Password</label>
+          <div class="field__wrap">
+            <input
+              class="field__input"
+              type="password"
+              id="password"
+              name="password"
+              autocomplete="current-password"
+              placeholder="••••••••"
+              required
+            />
+            <button type="button" class="field__toggle" onclick="togglePwd('password', this)" aria-label="Show password">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <span class="field__error" id="pwdErr"></span>
+        </div>
+
+        <button type="submit" class="btn btn--primary btn--full" id="loginBtn">
+          <span class="btn__text">Sign In</span>
+          <span class="btn__loader" hidden>●●●</span>
+        </button>
+      </form>
+
+      <p class="auth-footer">
+        Don't have an account? <a href="{% url 'register' %}">Create one →</a>
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('loginForm').addEventListener('submit', function(e) {
+  let ok = true;
+  const id = document.getElementById('identifier').value.trim();
+  const pw = document.getElementById('password').value;
+
+  if (!id) { document.getElementById('idErr').textContent = 'This field is required.'; ok = false; }
+  else document.getElementById('idErr').textContent = '';
+
+  if (!pw) { document.getElementById('pwdErr').textContent = 'This field is required.'; ok = false; }
+  else document.getElementById('pwdErr').textContent = '';
+
+  if (!ok) { e.preventDefault(); return; }
+
+  const btn = document.getElementById('loginBtn');
+  btn.querySelector('.btn__text').hidden = true;
+  btn.querySelector('.btn__loader').hidden = false;
+  btn.disabled = true;
+});
+</script>
+{% endblock %}

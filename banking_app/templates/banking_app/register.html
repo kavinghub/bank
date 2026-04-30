@@ -1,0 +1,157 @@
+{% extends 'banking_app/base.html' %}
+{% block title %}Register — HDF{% endblock %}
+{% block body_class %}auth-page{% endblock %}
+
+{% block body %}
+<div class="auth-split">
+  <div class="auth-panel">
+    <div class="auth-panel__inner">
+      <div class="brand">
+        <div class="brand__icon">₹</div>
+        <span class="brand__name">VaultX</span>
+      </div>
+      <div class="auth-panel__tagline">
+        <h1>Open your<br /><em>account.</em></h1>
+        <p>Takes under two minutes. No paperwork.</p>
+      </div>
+      <ul class="auth-panel__features">
+        <li>✓ Zero opening charges</li>
+        <li>✓ Instant account number</li>
+        <li>✓ bcrypt-secured credentials</li>
+        <li>✓ PIN-protected transactions</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="auth-form-wrap">
+    <div class="auth-card auth-card--wide">
+      <h2 class="auth-card__title">Create account</h2>
+      <p class="auth-card__sub">Fill in your details to get started</p>
+
+      {% if errors %}
+        <div class="alert alert--error">
+          <ul style="margin:0;padding-left:1.2rem;">
+            {% for e in errors %}<li>{{ e }}</li>{% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+
+      <form method="POST" action="{% url 'register' %}" class="auth-form" id="regForm" novalidate>
+        {% csrf_token %}
+
+        <div class="field-row">
+          <div class="field">
+            <label class="field__label" for="name">Full Name</label>
+            <input class="field__input" type="text" id="name" name="name"
+                   value="{{ form_data.name|default:'' }}" placeholder="Ada Lovelace" required />
+            <span class="field__error" id="nameErr"></span>
+          </div>
+          <div class="field">
+            <label class="field__label" for="phone">Phone Number</label>
+            <input class="field__input" type="tel" id="phone" name="phone"
+                   value="{{ form_data.phone|default:'' }}" placeholder="+91 98765 43210" required />
+            <span class="field__error" id="phoneErr"></span>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="field__label" for="email">Email Address</label>
+          <input class="field__input" type="email" id="email" name="email"
+                 value="{{ form_data.email|default:'' }}" placeholder="ada@example.com" required />
+          <span class="field__error" id="emailErr"></span>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label class="field__label" for="password">Password</label>
+            <div class="field__wrap">
+              <input class="field__input" type="password" id="password" name="password"
+                     placeholder="Min 8 chars, 1 uppercase, 1 digit" required />
+              <button type="button" class="field__toggle" onclick="togglePwd('password', this)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+            <span class="field__error" id="pwdErr"></span>
+          </div>
+          <div class="field">
+            <label class="field__label" for="confirm_password">Confirm Password</label>
+            <div class="field__wrap">
+              <input class="field__input" type="password" id="confirm_password" name="confirm_password" placeholder="Repeat password" required />
+              <button type="button" class="field__toggle" onclick="togglePwd('confirm_password', this)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+            <span class="field__error" id="cpwdErr"></span>
+          </div>
+        </div>
+
+        <div class="field field--pin">
+          <label class="field__label" for="pin">Transaction PIN <span class="field__hint">(4–6 digits, keep it private)</span></label>
+          <div class="field__wrap">
+            <input class="field__input field__input--pin" type="password"
+                   id="pin" name="pin" maxlength="6" placeholder="••••" required
+                   inputmode="numeric" pattern="\d{4,6}" />
+            <button type="button" class="field__toggle" onclick="togglePwd('pin', this)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <span class="field__error" id="pinErr"></span>
+        </div>
+
+        <button type="submit" class="btn btn--primary btn--full" id="regBtn">
+          <span class="btn__text">Open Account</span>
+          <span class="btn__loader" hidden>●●●</span>
+        </button>
+      </form>
+
+      <p class="auth-footer">Already have an account? <a href="{% url 'login' %}">Sign in →</a></p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('regForm').addEventListener('submit', function(e) {
+  let ok = true;
+
+  const checks = [
+    { id: 'name', errId: 'nameErr', msg: 'Full name is required.', test: v => v.trim().length >= 2 },
+    { id: 'phone', errId: 'phoneErr', msg: 'Enter a valid phone number.', test: v => /^\+?[\d\s\-]{7,15}$/.test(v.trim()) },
+    { id: 'email', errId: 'emailErr', msg: 'Enter a valid email.', test: v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) },
+    { id: 'pin', errId: 'pinErr', msg: 'PIN must be 4–6 digits.', test: v => /^\d{4,6}$/.test(v) },
+  ];
+
+  checks.forEach(c => {
+    const v = document.getElementById(c.id).value;
+    const el = document.getElementById(c.errId);
+    if (!c.test(v)) { el.textContent = c.msg; ok = false; }
+    else el.textContent = '';
+  });
+
+  const pw = document.getElementById('password').value;
+  const cpw = document.getElementById('confirm_password').value;
+  if (pw.length < 8 || !/[A-Z]/.test(pw) || !/\d/.test(pw)) {
+    document.getElementById('pwdErr').textContent = 'Min 8 chars, 1 uppercase, 1 digit.';
+    ok = false;
+  } else document.getElementById('pwdErr').textContent = '';
+
+  if (pw !== cpw) {
+    document.getElementById('cpwdErr').textContent = 'Passwords do not match.';
+    ok = false;
+  } else document.getElementById('cpwdErr').textContent = '';
+
+  if (!ok) { e.preventDefault(); return; }
+
+  const btn = document.getElementById('regBtn');
+  btn.querySelector('.btn__text').hidden = true;
+  btn.querySelector('.btn__loader').hidden = false;
+  btn.disabled = true;
+});
+
+// Only allow digits in PIN
+document.getElementById('pin').addEventListener('input', function() {
+  this.value = this.value.replace(/\D/g, '');
+});
+</script>
+{% endblock %}

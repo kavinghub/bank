@@ -1,0 +1,111 @@
+{% extends 'banking_app/base.html' %}
+{% load tz %}
+{% block title %}Transaction History — HDF{% endblock %}
+{% block body_class %}app-page{% endblock %}
+
+{% block body %}
+{% include 'banking_app/_sidebar.html' %}
+
+<main class="app-main">
+  <header class="app-header">
+    <div class="app-header__left">
+      <h1 class="app-header__title">Transaction History</h1>
+      <p class="app-header__sub">All your deposits and withdrawals</p>
+    </div>
+  </header>
+
+  <!-- Filter Bar -->
+  <div class="filter-bar">
+    <span class="filter-bar__label">Filter:</span>
+    <a href="{% url 'transactions' %}"
+       class="chip {% if not filter_type %}chip--active{% endif %}">All</a>
+    <a href="{% url 'transactions' %}?type=deposit"
+       class="chip chip--deposit {% if filter_type == 'deposit' %}chip--active{% endif %}">Deposits</a>
+    <a href="{% url 'transactions' %}?type=withdraw"
+       class="chip chip--withdraw {% if filter_type == 'withdraw' %}chip--active{% endif %}">Withdrawals</a>
+  </div>
+
+  <!-- Stats Row -->
+  <div class="txn-stats">
+    <div class="txn-stat-card txn-stat-card--deposit">
+      <div class="txn-stat-card__label">Total Deposited</div>
+      <div class="txn-stat-card__value">₹<span id="totDep">0.00</span></div>
+    </div>
+    <div class="txn-stat-card txn-stat-card--withdraw">
+      <div class="txn-stat-card__label">Total Withdrawn</div>
+      <div class="txn-stat-card__value">₹<span id="totWdw">0.00</span></div>
+    </div>
+    <div class="txn-stat-card">
+      <div class="txn-stat-card__label">Total Transactions</div>
+      <div class="txn-stat-card__value">{{ transactions|length }}</div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  {% if transactions %}
+    <div class="txn-table-wrap">
+      <table class="txn-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Type</th>
+            <th>Amount</th>
+            <th>Date &amp; Time</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for txn in transactions %}
+          <tr class="txn-table__row txn-table__row--{{ txn.type }}"
+              data-type="{{ txn.type }}"
+              data-amount="{{ txn.amount }}">
+            <td class="mono">{{ forloop.counter }}</td>
+            <td>
+              <span class="badge badge--{{ txn.type }}">
+                {% if txn.type == 'deposit' %}↑ Deposit{% else %}↓ Withdraw{% endif %}
+              </span>
+            </td>
+            <td class="txn-table__amount txn-table__amount--{{ txn.type }}">
+              {% if txn.type == 'deposit' %}+{% else %}−{% endif %}₹{{ txn.amount|floatformat:2 }}
+            </td>
+            <td class="txn-table__date">
+              {{ txn.date_time|localtime|date:"d M Y" }}<br/>
+              <small>{{ txn.date_time|localtime|date:"H:i:s" }}</small>
+            </td>
+            <td class="txn-table__desc">{{ txn.description|default:"—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+  {% else %}
+    <div class="empty-state empty-state--lg">
+      <div class="empty-state__icon">◌</div>
+      <p>No transactions found{% if filter_type %} for <strong>{{ filter_type }}s</strong>{% endif %}.</p>
+      <br/>
+      {% if filter_type %}
+        <a href="{% url 'transactions' %}" class="btn btn--ghost">Clear filter</a>
+      {% else %}
+        <a href="{% url 'deposit' %}" class="btn btn--primary" style="margin-top:1rem;">Make your first deposit →</a>
+      {% endif %}
+    </div>
+  {% endif %}
+
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var dep = 0, wdw = 0;
+  document.querySelectorAll('tr[data-type]').forEach(function(row) {
+    var amt = parseFloat(row.getAttribute('data-amount')) || 0;
+    if (row.getAttribute('data-type') === 'deposit') dep += amt;
+    else wdw += amt;
+  });
+  document.getElementById('totDep').textContent = formatINR(dep);
+  document.getElementById('totWdw').textContent = formatINR(wdw);
+});
+</script>
+{% endblock %}
