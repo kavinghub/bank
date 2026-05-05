@@ -192,15 +192,6 @@ def deposit_view(request):
             'error': 'Invalid PIN. Transaction cancelled.',
         })
 
-# def deposit_view(request):
-#     user = request.user
-    
-#     amounts = [500, 1000, 5000, 10000]   # ✅ add this
-    
-#     return render(request, 'banking_app/deposit.html', {
-#         'user': user,
-#         'amounts': amounts   # ✅ send to template
-#     })
 
     # Validate amount
     is_valid, amount, amount_error = validate_amount(amount_str)
